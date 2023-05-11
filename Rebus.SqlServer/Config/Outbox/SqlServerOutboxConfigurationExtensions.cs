@@ -38,7 +38,12 @@ public static class SqlServerOutboxConfigurationExtensions
                 var rebusLoggerFactory = c.Get<IRebusLoggerFactory>();
                 var outboxStorage = c.Get<IOutboxStorage>();
                 var transport = c.Get<ITransport>();
-                return new OutboxForwarder(asyncTaskFactory, rebusLoggerFactory, outboxStorage, transport);
+
+                // TODO: Somehow get a 'registered' OutboxOptions? and pass into the OutboxForwarder constructor below?
+                // TODO: Add EnableOutboxCleaner and CleanerIntervalInSeconds to RebusConfigurer somehow
+                var outboxOptions = new OutboxOptions(); // fill in options instance based in new properties in RebusConfigurer
+
+                return new OutboxForwarder(asyncTaskFactory, rebusLoggerFactory, outboxStorage, transport, outboxOptions);
             });
 
             o.Decorate(c =>

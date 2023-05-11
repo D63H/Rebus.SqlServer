@@ -26,4 +26,9 @@ public interface IOutboxStorage
     /// case where there is a colission between correlation IDs. Returns from 0 to <paramref name="maxMessageBatchSize"/> messages in the batch.
     /// </summary>
     Task<OutboxMessageBatch> GetNextMessageBatch(string correlationId = null, int maxMessageBatchSize = 100);
+
+    /// <summary>
+    ///  Deletes data from the Outbox database table for sent records
+    /// </summary>
+    Task Clean();
 }

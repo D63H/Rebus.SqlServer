@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Rebus.Bus;
+using Rebus.Config.Outbox;
 using Rebus.Logging;
 using Rebus.Threading;
 using Rebus.Transport;
@@ -37,15 +38,17 @@ class OutboxForwarder : IDisposable, IInitializable
     readonly IAsyncTask _forwarder;
     readonly IAsyncTask _cleaner;
     readonly ILog _logger;
+    readonly OutboxOptions _outboxOptions;
 
-    public OutboxForwarder(IAsyncTaskFactory asyncTaskFactory, IRebusLoggerFactory rebusLoggerFactory, IOutboxStorage outboxStorage, ITransport transport)
+    public OutboxForwarder(IAsyncTaskFactory asyncTaskFactory, IRebusLoggerFactory rebusLoggerFactory, IOutboxStorage outboxStorage, ITransport transport, OutboxOptions outboxOptions) // Interface for OutboxOptions? Is this even the right way to get options here?
     {
         if (asyncTaskFactory == null) throw new ArgumentNullException(nameof(asyncTaskFactory));
         _outboxStorage = outboxStorage;
         _transport = transport;
         _forwarder = asyncTaskFactory.Create("OutboxForwarder", RunForwarder, intervalSeconds: 1);
-        _cleaner = asyncTaskFactory.Create("OutboxCleaner", RunCleaner, intervalSeconds: 120);
+        _cleaner = asyncTaskFactory.Create("OutboxCleaner", RunCleaner, intervalSeconds: outboxOptions.CleanerIntervalInSeconds);
         _logger = rebusLoggerFactory.GetLogger<OutboxForwarder>();
+        _outboxOptions = outboxOptions;
     }
 
     public void Initialize()
@@ -100,7 +103,11 @@ class OutboxForwarder : IDisposable, IInitializable
 
     async Task RunCleaner()
     {
-        _logger.Debug("Checking outbox storage for messages to be deleted");
+        if (_outboxOptions.EnableOutboxCleaner)
+        {
+            _logger.Debug("Checking outbox storage for messages to be deleted");
+            await _outboxStorage.Clean();
+        }
     }
 
     public void TryEagerSend(IEnumerable<OutgoingTransportMessage> outgoingMessages, string correlationId)

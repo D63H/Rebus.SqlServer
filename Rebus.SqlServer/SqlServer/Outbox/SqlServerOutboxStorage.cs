@@ -99,6 +99,16 @@ CREATE TABLE {_tableName} (
     }
 
     /// <inheritdoc />
+    public async Task Clean()
+    {
+        using var scope = new RebusTransactionScope();
+        using var connection = _connectionProvider(scope.TransactionContext);
+        await CleanMessages(connection);
+        await connection.Complete();
+        await scope.CompleteAsync();
+    }
+
+    /// <inheritdoc />
     public async Task<OutboxMessageBatch> GetNextMessageBatch(string correlationId = null, int maxMessageBatchSize = 100)
     {
         return await InnerGetMessageBatch(maxMessageBatchSize, correlationId);
@@ -189,6 +199,13 @@ CREATE TABLE {_tableName} (
 
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    async Task CleanMessages(IDbConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"DELETE FROM {_tableName} WHERE [Sent] = 1";
+        await command.ExecuteNonQueryAsync();
     }
 
     async Task CompleteMessages(IDbConnection connection, IEnumerable<OutboxMessage> messages)
